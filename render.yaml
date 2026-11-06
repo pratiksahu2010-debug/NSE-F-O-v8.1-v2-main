@@ -1,0 +1,109 @@
+services:
+  - type: web
+    name: nse-fno-bot
+    runtime: python
+    plan: free                      # free web services sleep after 15 min without inbound traffic -> use the cron jobs in README
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /ping
+    autoDeploy: false
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: RUN_LOOP
+        value: "true"               # scanner lifecycle is independent of /ping
+      - key: ALERT_SCORE_MIN
+        value: "7.0"                 # V3 standard alert floor (7/10)
+      - key: PAPER_MODE
+        value: "true"
+      - key: BOT_VERSION
+        value: "nse-fno-v3.0-normal-orb-mex"
+      - key: STRATEGY_MODE
+        value: "V3"                # V3 = independent NORMAL + ORB + MEX engines; signal-only
+      - key: V3_PROFILE_ENABLED
+        value: "true"
+      - key: SIMPLE_ADX_MIN
+        value: "25"
+      - key: LIVE_INTRABAR_ENABLED
+        value: "true"              # enable websocket partial-candle triggers for NORMAL, MEX and ORB
+      - key: CANDLE_READY_RETRIES
+        value: "4"                  # V8.1: wait for the just-closed candle instead of discarding the symbol as stale
+      - key: CANDLE_READY_WAIT_SEC
+        value: "3"
+      - key: HISTORY_BACKFILL_ENABLED
+        value: "true"               # V8.1: re-fetch missing 5m history during the scan
+      - key: CHOP_GATE_ENABLED
+        value: "true"
+      - key: ORB_ENABLED
+        value: "true"
+      - key: VWAP_SETUP_ENABLED
+        value: "true"
+      - key: SQUEEZE_ENABLED
+        value: "true"
+      - key: REVERSAL_ENABLED
+        value: "true"
+      - key: SETUP_MIN_ADX
+        value: "20"
+      - key: NORMAL_ADX_MIN
+        value: "25"
+      - key: NORMAL_RSI_LONG_MIN
+        value: "50"
+      - key: NORMAL_RSI_SHORT_MAX
+        value: "50"
+      - key: NORMAL_MAX_EXTENSION_ATR
+        value: "1.5"
+      - key: MEX_MIN_IMPULSE_ATR
+        value: "0.65"
+      - key: MEX_MIN_RANGE_RATIO
+        value: "1.8"
+      - key: MEX_ORB_CLEARANCE_ATR
+        value: "0.65"
+      - key: MEX_ORB_BODY_MIN
+        value: "0.55"
+      - key: MEX_ORB_CLOSE_POS
+        value: "0.75"
+      - key: MIN_OPTION_DELTA
+        value: "0.45"
+      - key: MAX_OPTION_DELTA
+        value: "0.65"
+      - key: MIN_RR_T1
+        value: "1.5"
+      - key: REVERSAL_MIN_ADX
+        value: "18"
+      - key: MOMENTUM_EXPLOSION_ENABLED
+        value: "true"
+      - key: MEX_ENABLED
+        value: "true"
+      - key: MOMENTUM_ORB_ENABLED
+        value: "true"
+      - key: MEX_ORB_SCORE_MIN
+        value: "70"
+      - key: CRON_SECRET
+        generateValue: true         # Render invents a random value; copy it into your cron job URL
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      # ---- Upstox (primary) ----
+      - key: UPSTOX_ANALYTICS_TOKEN # 1-year read-only token: Upstox Developer Apps -> Analytics -> Generate
+        sync: false
+      - key: UPSTOX_API_KEY         # optional daily approve-on-phone flow (only if you have no analytics token)
+        sync: false
+      - key: UPSTOX_API_SECRET
+        sync: false
+      # ---- Telegram ----
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_IDS
+        sync: false
+      # ---- durable PostgreSQL storage (no local database fallback) ----
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nse-fno-db
+          property: connectionString   # internal URL; same-region only
+      - key: DATA_DIR
+        value: /tmp/cache
+
+databases:
+  - name: nse-fno-db
+    plan: free                         # free Render Postgres expires after a limited period -> upgrade for permanent use
+    databaseName: nse_fno
+    user: nse_fno
